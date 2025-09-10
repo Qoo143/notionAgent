@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion AI 助手 🤖</title>
+    
+    <!-- 樣式表 -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/chat.css">
+    <link rel="stylesheet" href="assets/css/progress.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- 聊天標題欄 -->
+        <div class="chat-header">
+            <div class="chat-title">
+                <div class="chat-title-icon">🤖</div>
+                <div class="chat-title-content">
+                    <h1>Notion AI 助手</h1>
+                    <div class="chat-status">
+                        <div class="status-indicator"></div>
+                        <span id="status">初始化中...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="btn btn-secondary btn-sm" onclick="clearChat()" title="清除對話">
+                    🗑️
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="showInfo()" title="系統資訊">
+                    ℹ️
+                </button>
+            </div>
+        </div>
+
+        <!-- 訊息區域 -->
+        <div class="messages-container" id="messages">
+            <!-- 歡迎訊息 -->
+            <div class="message message-bot">
+                <div class="message-bubble">
+                    <div class="message-content">
+                        <p><strong>👋 歡迎使用 Notion AI 助手！</strong></p>
+                        <p>我可以幫您：</p>
+                        <ul>
+                            <li>🔍 <strong>智能搜尋</strong> - 深度搜索 Notion 內容</li>
+                            <li>📄 <strong>內容分析</strong> - 讀取和分析頁面內容</li>
+                            <li>📊 <strong>資訊整理</strong> - 整理和總結重要資訊</li>
+                            <li>💡 <strong>智能回答</strong> - 基於您的 Notion 內容回答問題</li>
+                        </ul>
+                        <p>請輸入您的問題開始對話！</p>
+                    </div>
+                </div>
+                <div class="message-time">剛剛</div>
+            </div>
+        </div>
+
+        <!-- 智能搜索進度指示器 -->
+        <div id="searchProgress" class="search-progress hidden"></div>
+
+        <!-- 打字指示器 -->
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span>AI 正在思考中...</span>
+        </div>
+
+        <!-- 輸入區域 -->
+        <div class="input-area">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="message-input" 
+                        id="messageInput" 
+                        placeholder="輸入您的問題..." 
+                        rows="1"
+                    ></textarea>
+                </div>
+                <button class="send-button" id="sendButton" title="發送訊息 (Enter)">
+                    ➤
+                </button>
+            </div>
+            
+            <!-- 快速操作按鈕 -->
+            <div class="quick-actions">
+                <button class="quick-btn">🔍 深度搜索</button>
+                <button class="quick-btn">📝 會議總結</button>
+                <button class="quick-btn">✅ 任務分析</button>
+                <button class="quick-btn">📊 數據整理</button>
+                <button class="quick-btn">💡 創意發想</button>
+                <button class="quick-btn">🔬 技術研究</button>
+                <button class="quick-btn">📈 進度追蹤</button>
+                <button class="quick-btn">🎯 目標規劃</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/progress.js"></script>
+    <script src="assets/js/chat.js"></script>
+    
+    <script>
+        // 全域函數
+        function clearChat() {
+            if (window.chatManager) {
+                window.chatManager.clearChat();
+            }
+        }
+        
+        function showInfo() {
+            if (window.apiClient) {
+                window.apiClient.getSystemInfo().then(result => {
+                    if (result.success) {
+                        alert(`系統資訊:\n名稱: ${result.data.name}\n版本: ${result.data.version}\n描述: ${result.data.description}`);
+                    }
+                }).catch(error => {
+                    console.error('獲取系統資訊失敗:', error);
+                });
+            }
+        }
+        
+        // 頁面載入完成後的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Notion AI Agent 前端已載入');
+            
+            // 檢查瀏覽器支援
+            const support = window.utils.getBrowserSupport();
+            if (!support.fetch) {
+                alert('您的瀏覽器不支援現代功能，請升級瀏覽器以獲得最佳體驗。');
+            }
+            
+            // 檢查後端連線
+            if (window.apiClient) {
+                window.apiClient.getHealth()
+                    .then(result => {
+                        if (result.success) {
+                            console.log('✅ 後端服務連線正常');
+                            if (window.chatManager) {
+                                window.chatManager.updateStatus('已連線', 'success');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ 後端服務連線失敗:', error);
+                        if (window.chatManager) {
+                            window.chatManager.updateStatus('連線失敗', 'error');
+                        }
+                    });
+            }
+        });
+        
+        // 錯誤處理
+        window.addEventListener('error', function(e) {
+            console.error('全域錯誤:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('未處理的 Promise 拒絕:', e.reason);
+        });
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ const { initializeAgentExecutorWithOptions } = require('langchain/agents');
 const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
 const { PromptTemplate } = require('@langchain/core/prompts');
 const { NotionSearchTool, NotionGetPageTool, NotionQueryDatabaseTool } = require('../tools/notionTools');
+const IntelligentSearchService = require('../services/intelligentSearchService');
 
 /**
  * Notion AI Agent
@@ -10,14 +11,18 @@ const { NotionSearchTool, NotionGetPageTool, NotionQueryDatabaseTool } = require
 class NotionAgent {
     constructor(geminiApiKey, notionService) {
         this.notionService = notionService;
+        this.geminiApiKey = geminiApiKey;
         
         // 初始化 Gemini LLM
         this.llm = new ChatGoogleGenerativeAI({
-            model: "gemini-1.5-pro",
+            model: "gemini-1.5-flash",
             apiKey: geminiApiKey,
             temperature: 0.7,
             maxOutputTokens: 2048,
         });
+
+        // 初始化智能搜索服務
+        this.intelligentSearch = new IntelligentSearchService(notionService, geminiApiKey);
 
         // 初始化工具
         this.tools = [
@@ -28,6 +33,9 @@ class NotionAgent {
 
         // 對話歷史記錄
         this.conversationHistory = [];
+        
+        // 進度回調存儲
+        this.progressCallbacks = new Map();
     }
 
     /**
@@ -83,19 +91,62 @@ class NotionAgent {
     }
 
     /**
-     * 處理用戶輸入
+     * 智能搜索聊天 - 新的主要方法
      */
-    async chat(userInput, sessionId = 'default') {
+    async intelligentChat(userInput, sessionId = 'default', progressCallback = null) {
         try {
-            console.log(`💬 用戶輸入: ${userInput}`);
+            console.log(`💬 用戶輸入 (智能模式): ${userInput}`);
 
+            // 添加到對話歷史
+            this.addToHistory(sessionId, 'user', userInput);
+
+            // 判斷是否需要搜索
+            const needsSearch = await this.determineIfNeedsSearch(userInput);
+            
+            if (needsSearch) {
+                // 使用智能搜索
+                const searchResult = await this.intelligentSearch.intelligentSearch(
+                    userInput, 
+                    progressCallback
+                );
+                
+                if (searchResult.success) {
+                    // 添加回應到歷史
+                    this.addToHistory(sessionId, 'assistant', searchResult.response);
+                    
+                    console.log(`🤖 智能搜索回應完成`);
+                    return {
+                        response: searchResult.response,
+                        metadata: searchResult.metadata,
+                        searchUsed: true
+                    };
+                } else {
+                    throw new Error('智能搜索失敗');
+                }
+            } else {
+                // 使用傳統對話模式
+                return await this.traditionalChat(userInput, sessionId);
+            }
+
+        } catch (error) {
+            console.error('❌ 智能對話處理錯誤:', error);
+            return {
+                response: '抱歉，處理您的請求時發生錯誤。請稍後再試。',
+                error: error.message,
+                searchUsed: false
+            };
+        }
+    }
+
+    /**
+     * 傳統 Agent 對話模式
+     */
+    async traditionalChat(userInput, sessionId = 'default') {
+        try {
             // 檢查是否初始化
             if (!this.executor) {
                 await this.initialize();
             }
-
-            // 添加到對話歷史
-            this.addToHistory(sessionId, 'user', userInput);
 
             // 建構包含歷史的輸入
             const inputWithContext = this.buildInputWithContext(userInput, sessionId);
@@ -110,13 +161,48 @@ class NotionAgent {
             // 添加回應到歷史
             this.addToHistory(sessionId, 'assistant', response);
 
-            console.log(`🤖 Agent 回應: ${response}`);
-            return response;
+            console.log(`🤖 傳統 Agent 回應: ${response}`);
+            return {
+                response: response,
+                searchUsed: false
+            };
 
         } catch (error) {
-            console.error('❌ 處理對話時發生錯誤:', error);
-            return '抱歉，處理您的請求時發生錯誤。請稍後再試。';
+            console.error('❌ 傳統對話處理錯誤:', error);
+            throw error;
         }
+    }
+
+    /**
+     * 判斷是否需要搜索
+     */
+    async determineIfNeedsSearch(userInput) {
+        const searchKeywords = [
+            '搜尋', '搜索', '找', '查', '尋找', '查詢',
+            '專案', '計畫', '會議', '記錄', '文件', '頁面',
+            '進度', '狀態', '總結', '分析', '整理',
+            '什麼', '哪些', '如何', '怎麼', '為什麼'
+        ];
+
+        const needsSearch = searchKeywords.some(keyword => 
+            userInput.toLowerCase().includes(keyword)
+        );
+
+        // 排除簡單問候語
+        const greetings = ['你好', '嗨', '哈囉', '謝謝', '再見'];
+        const isGreeting = greetings.some(greeting => 
+            userInput.includes(greeting) && userInput.length < 10
+        );
+
+        return needsSearch && !isGreeting;
+    }
+
+    /**
+     * 處理用戶輸入 (保持向後相容)
+     */
+    async chat(userInput, sessionId = 'default') {
+        const result = await this.intelligentChat(userInput, sessionId);
+        return result.response;
     }
 
     /**

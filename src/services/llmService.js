@@ -7,7 +7,7 @@ const { GoogleGenerativeAI } = require('@langchain/google-genai');
 class LLMService {
     constructor(apiKey) {
         this.llm = new GoogleGenerativeAI({
-            model: "gemini-1.5-pro",
+            model: "gemini-1.5-flash",
             apiKey: apiKey,
             temperature: 0.7,
             maxOutputTokens: 2048,

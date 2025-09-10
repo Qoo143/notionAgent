@@ -10,10 +10,10 @@ class ChatRoutes {
      * 註冊聊天路由
      */
     register(app) {
-        // POST /api/chat - 處理對話
+        // POST /api/chat - 處理對話 (智能搜索模式)
         app.post('/api/chat', async (req, res) => {
             try {
-                const { message, sessionId = 'default' } = req.body;
+                const { message, sessionId = 'default', useIntelligentSearch = true } = req.body;
 
                 // 驗證輸入
                 if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -32,19 +32,41 @@ class ChatRoutes {
 
                 console.log(`💬 [${sessionId}] 用戶: ${message}`);
 
-                // 處理對話
-                const response = await this.notionAgent.chat(message.trim(), sessionId);
+                if (useIntelligentSearch) {
+                    // 使用智能搜索模式
+                    const result = await this.notionAgent.intelligentChat(
+                        message.trim(), 
+                        sessionId
+                    );
 
-                console.log(`🤖 [${sessionId}] Agent: ${response.substring(0, 100)}...`);
+                    console.log(`🤖 [${sessionId}] 智能搜索${result.searchUsed ? '已使用' : '未使用'}: ${result.response.substring(0, 100)}...`);
 
-                res.json({
-                    success: true,
-                    data: {
-                        response,
-                        sessionId,
-                        timestamp: new Date().toISOString()
-                    }
-                });
+                    res.json({
+                        success: true,
+                        data: {
+                            response: result.response,
+                            sessionId,
+                            timestamp: new Date().toISOString(),
+                            searchUsed: result.searchUsed,
+                            metadata: result.metadata || null
+                        }
+                    });
+                } else {
+                    // 使用傳統模式
+                    const response = await this.notionAgent.chat(message.trim(), sessionId);
+
+                    console.log(`🤖 [${sessionId}] 傳統模式: ${response.substring(0, 100)}...`);
+
+                    res.json({
+                        success: true,
+                        data: {
+                            response,
+                            sessionId,
+                            timestamp: new Date().toISOString(),
+                            searchUsed: false
+                        }
+                    });
+                }
 
             } catch (error) {
                 console.error('對話處理錯誤:', error);
