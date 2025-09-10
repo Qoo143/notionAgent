@@ -87,6 +87,58 @@ class APIClient {
     }
 
     /**
+     * 發送聊天訊息並監聽進度更新
+     */
+    async sendMessageWithProgress(message, sessionId = 'default', useIntelligentSearch = true, progressCallback = null) {
+        // 生成唯一的請求ID來關聯進度事件
+        const requestId = 'req-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        // 如果有進度回調，開始監聽 SSE
+        let eventSource = null;
+        if (progressCallback && useIntelligentSearch) {
+            eventSource = new EventSource(`/api/chat/progress/${requestId}`);
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    const progress = JSON.parse(event.data);
+                    progressCallback(progress);
+                } catch (error) {
+                    console.error('進度解析錯誤:', error);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('進度監聽錯誤:', error);
+                eventSource.close();
+            };
+        }
+        
+        try {
+            // 發送聊天請求，包含請求ID
+            const result = await this.post('/api/chat', {
+                message,
+                sessionId,
+                useIntelligentSearch,
+                requestId
+            });
+            
+            // 關閉 SSE 連接
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            return result;
+            
+        } catch (error) {
+            // 發生錯誤時確保關閉 SSE 連接
+            if (eventSource) {
+                eventSource.close();
+            }
+            throw error;
+        }
+    }
+
+    /**
      * 獲取對話歷史
      */
     async getHistory(sessionId) {

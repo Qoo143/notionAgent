@@ -157,11 +157,17 @@ class ChatManager {
                 this.progressTracker.start();
             }
             
-            // 發送到後端
-            const result = await window.apiClient.sendMessage(
+            // 發送到後端，並監聽進度更新
+            const progressCallback = needsProgress ? (progress) => {
+                // 實時更新進度條
+                this.progressTracker.updateProgress(progress);
+            } : null;
+
+            const result = await window.apiClient.sendMessageWithProgress(
                 message, 
                 this.sessionId, 
-                true // 使用智能搜索
+                true, // 使用智能搜索
+                progressCallback
             );
             
             if (result.success) {
