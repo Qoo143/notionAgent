@@ -96,7 +96,7 @@ class ChatManager {
         const quickButtons = document.querySelectorAll('.quick-btn');
         quickButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const message = button.textContent.trim().replace(/^[🔍📝✅📊💡🔬📈🎯]\s*/, '');
+                const message = button.textContent.trim().replace(/^[\u{1F000}-\u{1FFFF}]\s*/u, '');
                 this.insertQuickMessage(message);
             });
         });

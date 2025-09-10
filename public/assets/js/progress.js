@@ -37,13 +37,20 @@ class SearchProgressTracker {
     updateProgress(progress) {
         if (!this.isActive) return;
         
-        this.currentStep = progress.step;
-        this.updateStepStatus(progress);
-        this.updateProgressBar(progress.percentage);
+        // 確保進度物件有效
+        const safeProgress = {
+            step: progress?.step || this.currentStep || 1,
+            percentage: progress?.percentage || 0,
+            message: progress?.message || null
+        };
+        
+        this.currentStep = safeProgress.step;
+        this.updateStepStatus(safeProgress);
+        this.updateProgressBar(safeProgress.percentage);
         
         // 更新當前步驟的詳細資訊
-        if (progress.message) {
-            this.updateStepDetail(progress.step - 1, progress.message);
+        if (safeProgress.message) {
+            this.updateStepDetail(safeProgress.step - 1, safeProgress.message);
         }
     }
 
@@ -169,15 +176,18 @@ class SearchProgressTracker {
      * 更新進度條
      */
     updateProgressBar(percentage) {
+        // 確保百分比是有效數字
+        const validPercentage = typeof percentage === 'number' ? Math.max(0, Math.min(100, percentage)) : 0;
+        
         const progressFill = this.container.querySelector('.progress-fill');
         const progressText = this.container.querySelector('.progress-percentage');
         
         if (progressFill) {
-            progressFill.style.width = `${percentage}%`;
+            progressFill.style.width = `${validPercentage}%`;
         }
         
         if (progressText) {
-            progressText.textContent = `${percentage}%`;
+            progressText.textContent = `${validPercentage}%`;
         }
     }
 

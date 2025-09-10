@@ -49,6 +49,11 @@
 
 .search-step.completed .search-step-icon {
     background: var(--success-color);
+    color: white;
+}
+
+.search-step.completed .search-step-text {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .search-step-text {

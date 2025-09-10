@@ -37,27 +37,33 @@ class IntelligentSearchService {
             };
 
             // 步驟1: 語意分析，提取關鍵字
-            this.updateProgress(progressCallback, searchContext, '🧠 分析語意中...', ++searchContext.currentStep);
+            searchContext.currentStep = 1;
+            this.updateProgress(progressCallback, searchContext, '🧠 分析語意中...', searchContext.currentStep, 17);
             const keywords = await this.extractKeywords(userQuery);
 
             // 步驟2: 並行搜索獲取標題
-            this.updateProgress(progressCallback, searchContext, '🔍 搜索頁面中...', ++searchContext.currentStep);
+            searchContext.currentStep = 2;
+            this.updateProgress(progressCallback, searchContext, '🔍 搜索頁面中...', searchContext.currentStep, 33);
             const allPages = await this.parallelSearch(keywords, progressCallback);
 
             // 步驟3: AI篩選最佳頁面
-            this.updateProgress(progressCallback, searchContext, '🎯 AI篩選最佳頁面...', ++searchContext.currentStep);
+            searchContext.currentStep = 3;
+            this.updateProgress(progressCallback, searchContext, '🎯 AI篩選最佳頁面...', searchContext.currentStep, 50);
             const selectedPages = await this.selectBestPages(allPages, userQuery);
 
             // 步驟4: 遞歸獲取內容
-            this.updateProgress(progressCallback, searchContext, '📄 獲取頁面內容...', ++searchContext.currentStep);
+            searchContext.currentStep = 4;
+            this.updateProgress(progressCallback, searchContext, '📄 獲取頁面內容...', searchContext.currentStep, 67);
             const pageContents = await this.getPageContentsRecursively(selectedPages, progressCallback);
 
             // 步驟5: 智能整理回復
-            this.updateProgress(progressCallback, searchContext, '🤖 AI整理回復中...', ++searchContext.currentStep);
+            searchContext.currentStep = 5;
+            this.updateProgress(progressCallback, searchContext, '🤖 AI整理回復中...', searchContext.currentStep, 83);
             const response = await this.generateIntelligentResponse(userQuery, pageContents);
 
             // 步驟6: 完成
-            this.updateProgress(progressCallback, searchContext, '✅ 回復準備完成', ++searchContext.currentStep);
+            searchContext.currentStep = 6;
+            this.updateProgress(progressCallback, searchContext, '✅ 回復準備完成', searchContext.currentStep, 100);
 
             return {
                 success: true,
@@ -144,9 +150,8 @@ class IntelligentSearchService {
         for (let i = 0; i < keywords.length; i++) {
             const keyword = keywords[i];
             
-            if (progressCallback) {
-                progressCallback(`🔍 搜索關鍵字: ${keyword} (${i + 1}/${keywords.length})`);
-            }
+            // 不在這裡發送進度更新，因為這會干擾主要的進度流程
+            console.log(`🔍 搜索關鍵字: ${keyword} (${i + 1}/${keywords.length})`);
             
             try {
                 // 每個關鍵字搜索多次以獲得更多結果
@@ -252,9 +257,8 @@ ${allPages.map((page, index) =>
         for (let i = 0; i < pages.length; i++) {
             const page = pages[i];
             
-            if (progressCallback) {
-                progressCallback(`📄 讀取內容: ${page.title} (第${currentDepth}層, ${i + 1}/${pages.length})`);
-            }
+            // 不在這裡發送進度更新，因為這會干擾主要的進度流程
+            console.log(`📄 讀取內容: ${page.title} (第${currentDepth}層, ${i + 1}/${pages.length})`);
             
             try {
                 // 獲取頁面基本信息和內容
@@ -274,9 +278,8 @@ ${allPages.map((page, index) =>
                 if (currentDepth < this.config.maxDepth) {
                     const childPages = await this.findChildPages(page.id);
                     if (childPages.length > 0) {
-                        if (progressCallback) {
-                            progressCallback(`📑 探索子頁面: ${page.title} (第${currentDepth + 1}層)`);
-                        }
+                        // 不在這裡發送進度更新，因為這會干擾主要的進度流程
+                        console.log(`📑 探索子頁面: ${page.title} (第${currentDepth + 1}層)`);
                         
                         pageContent.children = await this.getPageContentsRecursively(
                             childPages, 
@@ -370,17 +373,25 @@ ${page.children.length > 0 ? `子頁面: ${page.children.length}個` : ''}
     /**
      * 更新進度
      */
-    updateProgress(callback, context, message, step) {
+    updateProgress(callback, context, message, step, customPercentage = null) {
+        const percentage = customPercentage !== null ? customPercentage : Math.round((step / context.totalSteps) * 100);
+        
         if (callback) {
             const progress = {
                 message: message,
                 step: step,
                 totalSteps: context.totalSteps,
-                percentage: Math.round((step / context.totalSteps) * 100)
+                percentage: percentage
             };
-            callback(progress);
+            
+            try {
+                callback(progress);
+            } catch (error) {
+                console.error(`❌ 進度更新發送失敗:`, error);
+            }
         }
-        console.log(`[搜索進度 ${step}/${context.totalSteps}] ${message}`);
+        
+        console.log(`[搜索進度 ${step}/${context.totalSteps}] ${message} (${percentage}%)`);
     }
 
     /**
